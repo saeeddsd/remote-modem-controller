@@ -61,8 +61,8 @@ jobs:
           # ****************************************** #
           # section مهم: نصب دقیق نسخه سالم برای رفع باگ 3.14
           # ****************************************** #
-          pip install --user --upgrade buildozer cython virtualenv "python-for-android==2024.5.23"
-
+          pip install --user --upgrade buildozer cython virtualenv "python-for-android==2024.1.21"
+          
       # 5. ساخت فایل امضا
       - name: Decode Keystore File
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > release.keystore
