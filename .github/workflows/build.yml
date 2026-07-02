@@ -1,0 +1,94 @@
+name: Build Android Release APK
+
+# اجرا هنگام پوش روی main + امکان اجرای دستی از سایت گیت‌هاب
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+# لغو بیلد قبلی اگر بیلد جدیدی شروع شد (جلوگیری از هدر رفتن دقایق)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# حداقل دسترسی‌های امنیتی
+permissions:
+  contents: read
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # --- بخش کش‌ها ---
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Cache Buildozer Global (SDK/NDK)
+        uses: actions/cache@v4
+        with:
+          path: .buildozer_global
+          key: buildozer-global-${{ hashFiles('buildozer.spec') }}
+          restore-keys: |
+            buildozer-global-
+
+      - name: Cache Buildozer Local
+        uses: actions/cache@v4
+        with:
+          path: .buildozer
+          key: buildozer-${{ hashFiles('buildozer.spec') }}
+          restore-keys: |
+            buildozer-
+
+      # --- بخش نصب پیش‌نیازها ---
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev
+
+      - name: Install Buildozer
+        run: pip install --user --upgrade buildozer cython virtualenv
+
+      # --- بخش مدیریت Keystore (امن و بدون خطا) ---
+      - name: Decode Keystore File
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > release.keystore
+
+      - name: Inject Keystore Config to Buildozer
+        run: |
+          # به جای دستور خطرناک sed، تنظیمات را به انتهای فایل اضافه میکنیم
+          # Buildozer همیشه آخرین مقدار خوانده شده را اعمال می‌کند
+          echo "" >> buildozer.spec
+          echo "android.release_keystore = ${{ github.workspace }}/release.keystore" >> buildozer.spec
+          echo "android.release_key_alias = ${{ secrets.KEY_ALIAS }}" >> buildozer.spec
+          echo "android.release_keystore_pw = ${{ secrets.KEYSTORE_PASSWORD }}" >> buildozer.spec
+          echo "android.release_key_pw = ${{ secrets.KEY_PASSWORD }}" >> buildozer.spec
+
+      # --- بخش بیلد نهایی ---
+      - name: Build with Buildozer (Release)
+        run: |
+          export PATH=$PATH:~/.local/bin/
+          buildozer android release
+
+      # --- بخش پاکسازی و خروجی ---
+      - name: Cleanup Keystore File
+        run: rm -f release.keystore
+        if: always() # حتی اگر بیلد خطا داد، فایل حساس پاک شود
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Release-APK-${{ github.sha }}
+          path: bin/*.apk
