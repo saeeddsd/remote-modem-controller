@@ -49,7 +49,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .buildozer
-          key: buildozer-v2-${{ hashFiles('buildozer.spec') }}
+          key: buildozer-${{ hashFiles('buildozer.spec') }}
           restore-keys: |
             buildozer-
 
@@ -79,6 +79,8 @@ jobs:
           echo "android.release_key_alias = ${{ secrets.KEY_ALIAS }}" >> buildozer.spec
           echo "android.release_keystore_pw = ${{ secrets.KEYSTORE_PASSWORD }}" >> buildozer.spec
           echo "android.release_key_pw = ${{ secrets.KEY_PASSWORD }}" >> buildozer.spec
+
+          rm -rf .buildozer/android/platform/python-for-android
 
       # --- بخش بیلد نهایی ---
       - name: Build with Buildozer (Release)
