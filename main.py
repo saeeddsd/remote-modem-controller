@@ -23,7 +23,7 @@ class SimpleTestApp(App):
         layout.add_widget(btn)
 
         return layout
-
+    
     # عملکرد دکمه
     def update_text(self, instance):
         typed_text = self.input.text
