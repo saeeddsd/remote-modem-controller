@@ -71,6 +71,10 @@ jobs:
           # به جای دستور خطرناک sed، تنظیمات را به انتهای فایل اضافه میکنیم
           # Buildozer همیشه آخرین مقدار خوانده شده را اعمال می‌کند
           echo "" >> buildozer.spec
+          # --- رفع باگ دانلود اشتباه نسخه 3.14 ---
+          # این خط buildozer را مجبور میکند از شاخه پایدار قبل از باگ استفاده کند
+          echo "p4a.branch = v2024.5.23" >> buildozer.spec
+
           echo "android.release_keystore = ${{ github.workspace }}/release.keystore" >> buildozer.spec
           echo "android.release_key_alias = ${{ secrets.KEY_ALIAS }}" >> buildozer.spec
           echo "android.release_keystore_pw = ${{ secrets.KEYSTORE_PASSWORD }}" >> buildozer.spec
