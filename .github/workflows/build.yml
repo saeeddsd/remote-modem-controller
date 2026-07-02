@@ -1,17 +1,14 @@
 name: Build Android Release APK
 
-# اجرا هنگام پوش روی main + امکان اجرای دستی از سایت گیت‌هاب
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
 
-# لغو بیلد قبلی اگر بیلد جدیدی شروع شد (جلوگیری از هدر رفتن دقایق)
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# حداقل دسترسی‌های امنیتی
 permissions:
   contents: read
 
@@ -28,7 +25,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      # --- بخش کش‌ها ---
+      # 1. کش پایتون
       - name: Cache pip packages
         uses: actions/cache@v4
         with:
@@ -37,61 +34,59 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
+      # 2. کش SDK و NDK
       - name: Cache Buildozer Global (SDK/NDK)
         uses: actions/cache@v4
         with:
           path: .buildozer_global
-          key: buildozer-global-${{ hashFiles('buildozer.spec') }}
+          key: sdk-global-${{ hashFiles('buildozer.spec') }}
           restore-keys: |
-            buildozer-global-
+            sdk-global-
 
+      # 3. کش فایل‌های بیلد (تغییر دادم کلید رو تا از کش‌های قبلی دور بمونه)
       - name: Cache Buildozer Local
         uses: actions/cache@v4
         with:
           path: .buildozer
-          key: buildozer-${{ hashFiles('buildozer.spec') }}
+          key: build-final-${{ hashFiles('buildozer.spec') }}
           restore-keys: |
-            buildozer-
+            build-final-
 
-      # --- بخش نصب پیش‌نیازها ---
-      - name: Install System Dependencies
+      # 4. نصب پیشنیازها
+      - name: Install Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses-dev cmake libffi-dev libssl-dev
+          
+          # ****************************************** #
+          # section مهم: نصب دقیق نسخه سالم برای رفع باگ 3.14
+          # ****************************************** #
+          pip install --user --upgrade buildozer cython virtualenv "python-for-android==2024.5.23"
 
-      - name: Install Buildozer
-        run: pip install --user --upgrade buildozer cython virtualenv
-
-      # --- بخش مدیریت Keystore (امن و بدون خطا) ---
+      # 5. ساخت فایل امضا
       - name: Decode Keystore File
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > release.keystore
 
-      - name: Inject Keystore Config to Buildozer
+      # 6. تنظیم فایل spec
+      - name: Inject Keystore Config
         run: |
-          # به جای دستور خطرناک sed، تنظیمات را به انتهای فایل اضافه میکنیم
-          # Buildozer همیشه آخرین مقدار خوانده شده را اعمال می‌کند
           echo "" >> buildozer.spec
-          # --- رفع باگ دانلود اشتباه نسخه 3.14 ---
-          # این خط buildozer را مجبور میکند از شاخه پایدار قبل از باگ استفاده کند
-          echo "p4a.branch = v2024.5.23" >> buildozer.spec
-
           echo "android.release_keystore = ${{ github.workspace }}/release.keystore" >> buildozer.spec
           echo "android.release_key_alias = ${{ secrets.KEY_ALIAS }}" >> buildozer.spec
           echo "android.release_keystore_pw = ${{ secrets.KEYSTORE_PASSWORD }}" >> buildozer.spec
           echo "android.release_key_pw = ${{ secrets.KEY_PASSWORD }}" >> buildozer.spec
 
-          rm -rf .buildozer/android/platform/python-for-android
-
-      # --- بخش بیلد نهایی ---
+      # 7. بیلد نهایی
       - name: Build with Buildozer (Release)
         run: |
           export PATH=$PATH:~/.local/bin/
+          export GITHUB_SHA=${{ github.sha }}
           buildozer android release
 
-      # --- بخش پاکسازی و خروجی ---
+      # 8. پاکسازی و آپلود
       - name: Cleanup Keystore File
         run: rm -f release.keystore
-        if: always() # حتی اگر بیلد خطا داد، فایل حساس پاک شود
+        if: always()
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
