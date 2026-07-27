@@ -42,23 +42,18 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip \
-            autoconf libtool pkg-config zlib1g-dev libncurses-dev \
-            cmake libffi-dev libssl-dev
+          sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses-dev cmake libffi-dev libssl-dev
           pip install --user --upgrade "buildozer==1.5.0" cython virtualenv
 
-      # ═══════════════════════════════════════════════════════
-      # FIX: Clone stable p4a to a SEPARATE directory, then tell
-      # buildozer to use it via p4a.source_dir. This completely
-      # bypasses buildozer's internal git operations and avoids
-      # the Python 3.14 bug in p4a's master branch.
-      # ═══════════════════════════════════════════════════════
-      - name: Clone stable p4a (bypass Python 3.14 bug)
+      # ═══════════════════════════════════════════════════════════════
+      # راه‌حل نهایی و قطعی: کلون کدهای سالم در مسیر پیش‌فرض buildozer
+      # و سپس حذف پوشه git برای جلوگیری از آپدیت شدن کدها توسط buildozer
+      # ═══════════════════════════════════════════════════════════════
+      - name: Pre-clone stable p4a & Remove Git Access
         run: |
-          git clone --depth 1 --single-branch \
-            --branch v2024.01.21 \
-            https://github.com/kivy/python-for-android.git \
-            ${{ github.workspace }}/p4a-src
+          mkdir -p .buildozer/android/platform
+          git clone --depth 1 --single-branch --branch v2024.01.21 https://github.com/kivy/python-for-android.git .buildozer/android/platform/python-for-android
+          rm -rf .buildozer/android/platform/python-for-android/.git
 
       - name: Decode Keystore File
         run: |
@@ -68,7 +63,6 @@ jobs:
         run: |
           echo "" >> buildozer.spec
           echo "# ═══ CI Injected Config ═══" >> buildozer.spec
-          echo "p4a.source_dir = ${{ github.workspace }}/p4a-src" >> buildozer.spec
           echo "android.release_keystore = ${{ github.workspace }}/release.keystore" >> buildozer.spec
           echo "android.release_key_alias = ${{ secrets.KEY_ALIAS }}" >> buildozer.spec
           echo "android.release_keystore_pw = ${{ secrets.KEYSTORE_PASSWORD }}" >> buildozer.spec
