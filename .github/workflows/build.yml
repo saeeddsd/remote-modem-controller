@@ -51,7 +51,7 @@ jobs:
         run: |
           # اگر پوشه p4a وجود نداشت، دستی آخرین نسخه سالم رو کلون میکنیم
           if [ ! -d ".buildozer/android/platform/python-for-android" ]; then
-            git clone --depth 1 --branch 2024.1.21 https://github.com/kivy/python-for-android.git .buildozer/android/platform/python-for-android
+            git clone --depth 1 --branch v2024.1.21 https://github.com/kivy/python-for-android.git .buildozer/android/platform/python-for-android
           fi
 
       - name: Decode Keystore File
