@@ -25,16 +25,13 @@ jobs:
         with:
           python-version: '3.11'
 
-      # 1. کش پایتون
       - name: Cache pip packages
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
+          key: ${{ runner.os }}-pip
 
-      # 2. کش SDK و NDK
+      # فقط SDK و NDL رو کش میکنیم (ایمن و بدون باگ)
       - name: Cache Buildozer Global (SDK/NDK)
         uses: actions/cache@v4
         with:
@@ -43,47 +40,33 @@ jobs:
           restore-keys: |
             sdk-global-
 
-      # 3. کش فایل‌های بیلد (تغییر دادم کلید رو تا از کش‌های قبلی دور بمونه)
-      - name: Cache Buildozer Local
-        uses: actions/cache@v4
-        with:
-          path: .buildozer
-          key: build-final-${{ hashFiles('buildozer.spec') }}
-          restore-keys: |
-            build-final-
-
-      # 4. نصب پیشنیازها
       - name: Install Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses-dev cmake libffi-dev libssl-dev
-          
-          # ****************************************** #
-          # section مهم: نصب دقیق نسخه سالم برای رفع باگ 3.14
-          # ****************************************** #
-          pip install --user --upgrade buildozer cython virtualenv "python-for-android==2024.1.21"
-          
-      # 5. ساخت فایل امضا
+          pip install --user --upgrade buildozer cython virtualenv
+
       - name: Decode Keystore File
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > release.keystore
 
-      # 6. تنظیم فایل spec
-      - name: Inject Keystore Config
+      - name: Inject Keystore & Fix p4a Bug
         run: |
           echo "" >> buildozer.spec
+          
+          # این دستور به بیلدوزر میگه دقیقا از کدوم شاخه گیت‌هاب کلون کنه (بدون باگ 3.14)
+          echo "p4a.branch = v2024.1.21" >> buildozer.spec
+          
           echo "android.release_keystore = ${{ github.workspace }}/release.keystore" >> buildozer.spec
           echo "android.release_key_alias = ${{ secrets.KEY_ALIAS }}" >> buildozer.spec
           echo "android.release_keystore_pw = ${{ secrets.KEYSTORE_PASSWORD }}" >> buildozer.spec
           echo "android.release_key_pw = ${{ secrets.KEY_PASSWORD }}" >> buildozer.spec
 
-      # 7. بیلد نهایی
       - name: Build with Buildozer (Release)
         run: |
           export PATH=$PATH:~/.local/bin/
           export GITHUB_SHA=${{ github.sha }}
           buildozer android release
 
-      # 8. پاکسازی و آپلود
       - name: Cleanup Keystore File
         run: rm -f release.keystore
         if: always()
