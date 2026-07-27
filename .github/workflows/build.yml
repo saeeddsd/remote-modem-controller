@@ -45,16 +45,6 @@ jobs:
           sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses-dev cmake libffi-dev libssl-dev
           pip install --user --upgrade "buildozer==1.5.0" cython virtualenv
 
-      - name: Pre-clone stable p4a & Remove Git Access
-        run: |
-          mkdir -p .buildozer/android/platform
-          git clone --depth 1 --single-branch --branch v2024.01.21 https://github.com/kivy/python-for-android.git .buildozer/android/platform/python-for-android
-          rm -rf .buildozer/android/platform/python-for-android/.git
-
-      # ═══════════════════════════════════════════════════════════════
-      # ریشه اصلی ارور 3.14.2: پین کردن نسخه پایتون در spec
-      # این مرحله نسخه پایتون را از requirements حذف میکند تا بیلدوزر خودش سینک کند
-      # ═══════════════════════════════════════════════════════════════
       - name: Fix Python Version Mismatch in buildozer.spec
         run: |
           sed -i 's/python3==3.11.4/python3/g' buildozer.spec
@@ -64,10 +54,12 @@ jobs:
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > release.keystore
 
-      - name: Inject Buildozer Config
+      - name: Inject Buildozer Config (Fix libffi & NDK)
         run: |
           echo "" >> buildozer.spec
           echo "# ═══ CI Injected Config ═══" >> buildozer.spec
+          echo "p4a.branch = v2024.07.05" >> buildozer.spec
+          echo "android.ndk = 27b" >> buildozer.spec
           echo "android.release_keystore = ${{ github.workspace }}/release.keystore" >> buildozer.spec
           echo "android.release_key_alias = ${{ secrets.KEY_ALIAS }}" >> buildozer.spec
           echo "android.release_keystore_pw = ${{ secrets.KEYSTORE_PASSWORD }}" >> buildozer.spec
