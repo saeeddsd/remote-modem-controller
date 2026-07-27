@@ -54,7 +54,7 @@ jobs:
           echo "" >> buildozer.spec
           
           # این دستور به بیلدوزر میگه دقیقا از کدوم شاخه گیت‌هاب کلون کنه (بدون باگ 3.14)
-          echo "p4a.branch = v2024.1.21" >> buildozer.spec
+          echo "p4a.branch = 2024.1.21" >> buildozer.spec
           
           echo "android.release_keystore = ${{ github.workspace }}/release.keystore" >> buildozer.spec
           echo "android.release_key_alias = ${{ secrets.KEY_ALIAS }}" >> buildozer.spec
