@@ -42,25 +42,33 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses-dev cmake libffi-dev libssl-dev
-          # نصب نسخه 1.5.0 بیلدوزر که stable تره و دست به p4a نمیزنه
+          sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip \
+            autoconf libtool pkg-config zlib1g-dev libncurses-dev \
+            cmake libffi-dev libssl-dev
           pip install --user --upgrade "buildozer==1.5.0" cython virtualenv
 
-      # --- شاه‌کلید نهایی: دور زدن باگ بیلدوزر ---
-      - name: Bypass p4a 3.14 Bug
+      # ═══════════════════════════════════════════════════════
+      # FIX: Clone stable p4a to a SEPARATE directory, then tell
+      # buildozer to use it via p4a.source_dir. This completely
+      # bypasses buildozer's internal git operations and avoids
+      # the Python 3.14 bug in p4a's master branch.
+      # ═══════════════════════════════════════════════════════
+      - name: Clone stable p4a (bypass Python 3.14 bug)
         run: |
-          # اگر پوشه p4a وجود نداشت، دستی آخرین نسخه سالم رو کلون میکنیم
-          if [ ! -d ".buildozer/android/platform/python-for-android" ]; then
-            git clone --depth 1 --branch v2024.01.21 https://github.com/kivy/python-for-android.git .buildozer/android/platform/python-for-android
-          fi
+          git clone --depth 1 --single-branch \
+            --branch v2024.01.21 \
+            https://github.com/kivy/python-for-android.git \
+            ${{ github.workspace }}/p4a-src
 
       - name: Decode Keystore File
-        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > release.keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > release.keystore
 
-      - name: Inject Keystore Config
+      - name: Inject Buildozer Config
         run: |
           echo "" >> buildozer.spec
-          # دیگه هیچ تنظیماتی مربوط به p4a.branch اینجا نیست
+          echo "# ═══ CI Injected Config ═══" >> buildozer.spec
+          echo "p4a.source_dir = ${{ github.workspace }}/p4a-src" >> buildozer.spec
           echo "android.release_keystore = ${{ github.workspace }}/release.keystore" >> buildozer.spec
           echo "android.release_key_alias = ${{ secrets.KEY_ALIAS }}" >> buildozer.spec
           echo "android.release_keystore_pw = ${{ secrets.KEYSTORE_PASSWORD }}" >> buildozer.spec
