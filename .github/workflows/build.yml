@@ -45,15 +45,20 @@ jobs:
           sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses-dev cmake libffi-dev libssl-dev
           pip install --user --upgrade "buildozer==1.5.0" cython virtualenv
 
-      # ═══════════════════════════════════════════════════════════════
-      # راه‌حل نهایی و قطعی: کلون کدهای سالم در مسیر پیش‌فرض buildozer
-      # و سپس حذف پوشه git برای جلوگیری از آپدیت شدن کدها توسط buildozer
-      # ═══════════════════════════════════════════════════════════════
       - name: Pre-clone stable p4a & Remove Git Access
         run: |
           mkdir -p .buildozer/android/platform
           git clone --depth 1 --single-branch --branch v2024.01.21 https://github.com/kivy/python-for-android.git .buildozer/android/platform/python-for-android
           rm -rf .buildozer/android/platform/python-for-android/.git
+
+      # ═══════════════════════════════════════════════════════════════
+      # ریشه اصلی ارور 3.14.2: پین کردن نسخه پایتون در spec
+      # این مرحله نسخه پایتون را از requirements حذف میکند تا بیلدوزر خودش سینک کند
+      # ═══════════════════════════════════════════════════════════════
+      - name: Fix Python Version Mismatch in buildozer.spec
+        run: |
+          sed -i 's/python3==3.11.4/python3/g' buildozer.spec
+          sed -i '/^hostpython3/d' buildozer.spec
 
       - name: Decode Keystore File
         run: |
