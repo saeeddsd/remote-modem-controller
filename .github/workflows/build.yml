@@ -43,15 +43,15 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses-dev cmake libffi-dev libssl-dev
-          # دیگه python-for-android رو اینجا نصب نمیکنیم
-          pip install --user --upgrade buildozer cython virtualenv
+          # نصب نسخه 1.5.0 بیلدوزر که stable تره و دست به p4a نمیزنه
+          pip install --user --upgrade "buildozer==1.5.0" cython virtualenv
 
       # --- شاه‌کلید نهایی: دور زدن باگ بیلدوزر ---
       - name: Bypass p4a 3.14 Bug
         run: |
           # اگر پوشه p4a وجود نداشت، دستی آخرین نسخه سالم رو کلون میکنیم
           if [ ! -d ".buildozer/android/platform/python-for-android" ]; then
-            git clone --depth 1 --branch v2024.1.21 https://github.com/kivy/python-for-android.git .buildozer/android/platform/python-for-android
+            git clone --depth 1 --branch v2024.01.21 https://github.com/kivy/python-for-android.git .buildozer/android/platform/python-for-android
           fi
 
       - name: Decode Keystore File
