@@ -14,7 +14,10 @@ permissions:
 
 jobs:
   build-android:
-    runs-on: ubuntu-latest
+    # ═══════════════════════════════════════════════════════
+    # تغییر کلیدی: استفاده از اوبونتو 22.04 برای جلوگیری از ارور libffi
+    # ═══════════════════════════════════════════════════════
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout Code
@@ -54,7 +57,7 @@ jobs:
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > release.keystore
 
-      - name: Inject Buildozer Config (Fix libffi & NDK)
+      - name: Inject Buildozer Config
         run: |
           echo "" >> buildozer.spec
           echo "# ═══ CI Injected Config ═══" >> buildozer.spec
