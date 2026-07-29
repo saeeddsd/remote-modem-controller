@@ -25,35 +25,22 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Cache pip packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip
-
       - name: Install Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses-dev cmake libffi-dev libssl-dev
           pip install --user --upgrade "buildozer==1.5.0" "cython==3.0.11" virtualenv
 
-      # ═══ فریب دادن بیلدوزر در دو مسیر مختلف (پوشه پروژه و پوشه خانه) ═══
-      - name: Pre-clone stable p4a & Spoof NDK
+      # ═══ لایه ۱ و ۲: فریب دادن بیلدوزر در مسیرهای دقیق ═══
+      - name: Prepare p4a and NDK
         run: |
-          # ۱. کلون p4a پایدار در پوشه پروژه (بیلدوزر اینجا را چک می‌کند)
-          mkdir -p .buildozer/android/platform
-          git clone --depth 1 --single-branch --branch v2024.01.21 https://github.com/kivy/python-for-android.git .buildozer/android/platform/python-for-android
-          rm -rf .buildozer/android/platform/python-for-android/.git
+          # ۱. کلون کدهای پایدار p4a در مسیر خانه
+          git clone --depth 1 --single-branch --branch v2024.01.21 https://github.com/kivy/python-for-android.git /home/runner/p4a-src
           
-          # ۲. فریب NDK در پوشه خانه (بیلدوزر NDK را اینجا می‌گذارد)
-          mkdir -p ~/.buildozer/android/platform
-          rm -rf ~/.buildozer/android/platform/android-ndk-r28c
-          ln -s /usr/local/lib/android/sdk/ndk/23.2.7579858 ~/.buildozer/android/platform/android-ndk-r28c
-
-      - name: Fix Python Version
-        run: |
-          sed -i 's/python3==3.11.4/python3/g' buildozer.spec
-          sed -i '/^hostpython3/d' buildozer.spec
+          # ۲. فریب NDK: ساخت پوشه r25b و اتصال NDK از پیش نصب شده به آن
+          mkdir -p /home/runner/.buildozer/android/platform
+          rm -rf /home/runner/.buildozer/android/platform/android-ndk-r25b
+          ln -s /usr/local/lib/android/sdk/ndk/25.2.9519653 /home/runner/.buildozer/android/platform/android-ndk-r25b
 
       - name: Decode Keystore File
         run: |
@@ -61,25 +48,32 @@ jobs:
 
       - name: Inject Buildozer Config
         run: |
-          # پاک کردن تنظیمات قدیمی
+          # پاک کردن تنظیمات قدیمی برای جلوگیری از تداخل
           sed -i '/^p4a.branch/d' buildozer.spec
           sed -i '/^p4a.source_dir/d' buildozer.spec
+          sed -i '/^android.ndk/d' buildozer.spec
+          sed -i '/^android.release_keystore/d' buildozer.spec
+          sed -i '/^android.release_key_alias/d' buildozer.spec
+          sed -i '/^android.release_keystore_pw/d' buildozer.spec
+          sed -i '/^android.release_key_pw/d' buildozer.spec
           
           echo "" >> buildozer.spec
           echo "# ═══ CI Injected Config ═══" >> buildozer.spec
-          # تزریق مسیر مستقیم p4a برای جلوگیری از کلون مستر
-          echo "p4a.source_dir = ${{ github.workspace }}/.buildozer/android/platform/python-for-android" >> buildozer.spec
+          echo "p4a.source_dir = /home/runner/p4a-src" >> buildozer.spec
+          echo "android.ndk = 25b" >> buildozer.spec
           echo "android.release_keystore = ${{ github.workspace }}/release.keystore" >> buildozer.spec
           echo "android.release_key_alias = ${{ secrets.KEY_ALIAS }}" >> buildozer.spec
           echo "android.release_keystore_pw = ${{ secrets.KEYSTORE_PASSWORD }}" >> buildozer.spec
           echo "android.release_key_pw = ${{ secrets.KEY_PASSWORD }}" >> buildozer.spec
 
+      # ═══ لایه ۳: خاموش کردن سخت‌گیری Clang برای ارورهای C++ ═══
       - name: Build with Buildozer (Release)
         run: |
           set -o pipefail
-          export PATH=$PATH:~/.local/bin/
-          export GITHUB_SHA=${{ github.sha }}
+          export PATH=$PATH:/home/runner/.local/bin
           export JAVA_HOME=/usr/lib/jvm/temurin-17-jdk-amd64
+          export CFLAGS="-Wno-error=incompatible-function-pointer-types"
+          export CXXFLAGS="-Wno-error=incompatible-function-pointer-types"
           buildozer android release 2>&1 | tee buildozer_full_log.txt
 
       - name: Print Real Error If Build Fails
