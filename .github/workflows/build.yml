@@ -43,13 +43,21 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses-dev cmake libffi-dev libssl-dev
-          pip install --user --upgrade "buildozer==1.5.0" cython virtualenv
+          pip install --user --upgrade "buildozer==1.5.0" "cython==3.0.11" virtualenv
 
       - name: Fix Python Version & Reduce Log Size
         run: |
           sed -i 's/python3==3.11.4/python3/g' buildozer.spec
           sed -i '/^hostpython3/d' buildozer.spec
           sed -i 's/log_level = 2/log_level = 1/g' buildozer.spec
+
+      # ═══════════════════════════════════════════════════════
+      # ترفند نهایی: متصل کردن NDK از پیش نصب شده و پایدار گیت‌هاب
+      # ═══════════════════════════════════════════════════════
+      - name: Prepare Stable NDK Symlink
+        run: |
+          mkdir -p .buildozer/android/platform
+          ln -s /usr/local/lib/android/sdk/ndk/27.3.13750724 .buildozer/android/platform/android-ndk-r27b
 
       - name: Decode Keystore File
         run: |
@@ -60,7 +68,7 @@ jobs:
           echo "" >> buildozer.spec
           echo "# ═══ CI Injected Config ═══" >> buildozer.spec
           echo "p4a.branch = v2024.07.05" >> buildozer.spec
-          echo "android.ndk = 25b" >> buildozer.spec
+          echo "android.ndk = 27b" >> buildozer.spec
           echo "android.release_keystore = ${{ github.workspace }}/release.keystore" >> buildozer.spec
           echo "android.release_key_alias = ${{ secrets.KEY_ALIAS }}" >> buildozer.spec
           echo "android.release_keystore_pw = ${{ secrets.KEYSTORE_PASSWORD }}" >> buildozer.spec
@@ -70,9 +78,7 @@ jobs:
         run: |
           export PATH=$PATH:~/.local/bin/
           export GITHUB_SHA=${{ github.sha }}
-          # ═══ تزریق اجباری جاوا ۱۷ و NDK پایدار ═══
           export JAVA_HOME=/usr/lib/jvm/temurin-17-jdk-amd64
-          export ANDROIDNDK=/home/runner/.buildozer/android/platform/android-ndk-r25b
           buildozer android release
 
       - name: Cleanup Keystore File
