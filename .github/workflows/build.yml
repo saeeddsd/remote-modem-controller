@@ -37,14 +37,21 @@ jobs:
           sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses-dev cmake libffi-dev libssl-dev
           pip install --user --upgrade "buildozer==1.5.0" "cython==3.0.11" virtualenv
 
-      # ═══ ترفند فریب NDK: ساخت پوشه r28c و اتصال NDK پایدار به آن ═══
-      - name: Spoof Stable NDK as r28c
+      # ═══ ترفند اصلی: فریب دادن بیلدوزر در مسیر خانه (~) ═══
+      - name: Spoof NDK & p4a in Home Directory
         run: |
-          mkdir -p .buildozer/android/platform
-          ln -s /usr/local/lib/android/sdk/ndk/25.2.9519653 .buildozer/android/platform/android-ndk-r28c
+          # ۱. ساخت پوشه r28c و اتصال NDK 23b به آن (برای جلوگیری از ارور glShaderSource)
+          mkdir -p ~/.buildozer/android/platform
+          rm -rf ~/.buildozer/android/platform/android-ndk-r28c
+          ln -s /usr/local/lib/android/sdk/ndk/23.2.7579858 ~/.buildozer/android/platform/android-ndk-r28c
+          
+          # ۲. کلون مستقیم کدهای پایدار p4a در مسیر خانه
+          rm -rf ~/.buildozer/android/platform/python-for-android
+          git clone --depth 1 --single-branch --branch v2024.01.21 https://github.com/kivy/python-for-android.git ~/.buildozer/android/platform/python-for-android
 
       - name: Fix Python Version in buildozer.spec
         run: |
+          # تغییر python3==3.11.4 به python3 تا بیلدوزر سراغ پایتون 3.14 نرود
           sed -i 's/python3==3.11.4/python3/g' buildozer.spec
           sed -i '/^hostpython3/d' buildozer.spec
 
@@ -54,9 +61,11 @@ jobs:
 
       - name: Inject Buildozer Config
         run: |
+          # پاک کردن p4a.branch قدیمی اگر در فایل spec وجود داشت
+          sed -i '/^p4a.branch/d' buildozer.spec
+          
           echo "" >> buildozer.spec
           echo "# ═══ CI Injected Config ═══" >> buildozer.spec
-          echo "p4a.branch = v2024.01.21" >> buildozer.spec
           echo "android.release_keystore = ${{ github.workspace }}/release.keystore" >> buildozer.spec
           echo "android.release_key_alias = ${{ secrets.KEY_ALIAS }}" >> buildozer.spec
           echo "android.release_keystore_pw = ${{ secrets.KEYSTORE_PASSWORD }}" >> buildozer.spec
