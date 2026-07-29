@@ -37,6 +37,17 @@ jobs:
           sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses-dev cmake libffi-dev libssl-dev
           pip install --user --upgrade "buildozer==1.5.0" "cython==3.0.11" virtualenv
 
+      # ═══ ترفند فریب NDK: ساخت پوشه r28c و اتصال NDK پایدار به آن ═══
+      - name: Spoof Stable NDK as r28c
+        run: |
+          mkdir -p .buildozer/android/platform
+          ln -s /usr/local/lib/android/sdk/ndk/25.2.9519653 .buildozer/android/platform/android-ndk-r28c
+
+      - name: Fix Python Version in buildozer.spec
+        run: |
+          sed -i 's/python3==3.11.4/python3/g' buildozer.spec
+          sed -i '/^hostpython3/d' buildozer.spec
+
       - name: Decode Keystore File
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > release.keystore
@@ -45,10 +56,7 @@ jobs:
         run: |
           echo "" >> buildozer.spec
           echo "# ═══ CI Injected Config ═══" >> buildozer.spec
-          # استفاده از نسخه ای که پایتون 3.14 نمی آورد
           echo "p4a.branch = v2024.01.21" >> buildozer.spec
-          # استفاده از NDK 23b برای جلوگیری از ارورهای Clang در Kivy 2.3.0
-          echo "android.ndk = 23b" >> buildozer.spec
           echo "android.release_keystore = ${{ github.workspace }}/release.keystore" >> buildozer.spec
           echo "android.release_key_alias = ${{ secrets.KEY_ALIAS }}" >> buildozer.spec
           echo "android.release_keystore_pw = ${{ secrets.KEYSTORE_PASSWORD }}" >> buildozer.spec
@@ -60,13 +68,6 @@ jobs:
           export PATH=$PATH:~/.local/bin/
           export GITHUB_SHA=${{ github.sha }}
           export JAVA_HOME=/usr/lib/jvm/temurin-17-jdk-amd64
-          
-          # تزریق اجباری NDK 23b از پیش نصب شده روی سرور گیت‌هاب
-          export ANDROIDSDK=/usr/local/lib/android/sdk
-          export ANDROIDNDK=/usr/local/lib/android/sdk/ndk/23.2.7579858
-          export ANDROID_NDK_HOME=$ANDROIDNDK
-          export ANDROID_NDK_ROOT=$ANDROIDNDK
-          
           buildozer android release 2>&1 | tee buildozer_full_log.txt
 
       - name: Print Real Error If Build Fails
